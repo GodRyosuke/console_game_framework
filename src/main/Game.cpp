@@ -9,18 +9,20 @@ Game::Game()
     for (int i = 0; i < NUM_CELL_DATA; i++) {
         char* temp_cell = new char[3];
     }
-    for (int i = 0; i < NUM_CELL_DATA; i++) {
-        CellAA[i] = "　";
-    }
     CellAA[0] = "　";
     CellAA[1] = "■";
     CellAA[2] = "〇";
     CellAA[3] = "・";
-    CellAA[4] = "◎";
-    CellAA[5] = "赤";
-    CellAA[6] = "青";
-    CellAA[7] = "桃";
-    CellAA[8] = "橙";
+
+    MonsterAA = new char*[NUM_MONSTER_TYPE];
+    for (int i = 0; i < NUM_MONSTER_TYPE; i++) {
+        MonsterAA[i] = new char[3];
+    }
+    MonsterAA[0] = "◎";
+    MonsterAA[1] = "赤";
+    MonsterAA[2] = "青";
+    MonsterAA[3] = "桃";
+    MonsterAA[4] = "橙";
 }
 
 std::string Game::ReadFile(std::string file_name)
@@ -34,6 +36,12 @@ std::string Game::ReadFile(std::string file_name)
 	}
 
 	return contents.str();
+}
+
+void get_pos(int cell_count, const int MazeWidth, int& x, int& y)
+{
+    y = cell_count / MazeWidth;
+    x = cell_count % MazeWidth;
 }
 
 void Game::LoadFieldData()
@@ -75,23 +83,43 @@ void Game::LoadFieldData()
                 cell_data = CELL_TYPE_NONE;
                 break;
             default:
+                cell_data = CELL_TYPE_MONSTER;
+                int x, y;
+                MonsterPos mp;
+                MonsterData monster_name;
                 switch (c) { // monster data
                     case 'b':
-                        cell_data = MONSTER_TYPE_BLUE;
+                        get_pos(cell_count, MazeWidth, x, y);
+                        mp.x = x;
+                        mp.y = y;
+                        monster_name = MONSTER_TYPE_BLUE;
                         break;
                     case 'r':
-                        cell_data = MONSTER_TYPE_RED;
+                        get_pos(cell_count, MazeWidth, x, y);
+                        mp.x = x;
+                        mp.y = y;
+                        monster_name = MONSTER_TYPE_RED;
                         break;
                     case 'p':
-                        cell_data = MONSTER_TYPE_PINK;
+                        get_pos(cell_count, MazeWidth, x, y);
+                        mp.x = x;
+                        mp.y = y;
+                        monster_name = MONSTER_TYPE_PINK;
                         break;
                     case 'y':
-                        cell_data = MONSTER_TYPE_ORANGE;
+                        get_pos(cell_count, MazeWidth, x, y);
+                        mp.x = x;
+                        mp.y = y;
+                        monster_name = MONSTER_TYPE_ORANGE;
                         break;
                     case '@':
-                        cell_data = MONSTER_TYPE_PAC;
+                        get_pos(cell_count, MazeWidth, x, y);
+                        mp.x = x;
+                        mp.y = y;
+                        monster_name = MONSTER_TYPE_PAC;
                         break;
-            }
+                }
+                MonsterPosMap.insert(std::make_pair(monster_name, mp));
         }
         cell_type_vec.push_back(cell_data);
         cell_count++;
@@ -115,7 +143,19 @@ void Game::Display()
     //system("cls");
     for (int y = 0; y < MazeHeight; y++) {
         for (int x = 0; x < MazeWidth; x++) {
-            std::cout << CellAA[CellTypeData[y * MazeWidth + x]];
+            CellData cell_data = CellTypeData[y * MazeWidth + x];
+            if (cell_data == CELL_TYPE_MONSTER) { // モンスター描画
+                MonsterData monster_data;
+                for (auto itr = MonsterPosMap.begin(); itr != MonsterPosMap.end(); itr++) {
+                    if ((itr->second.x == x) && (itr->second.y == y)) {
+                        monster_data = itr->first;
+                    }
+                }
+                std::cout << MonsterAA[monster_data];
+            }
+            else { // フィールド描画
+                std::cout << CellAA[CellTypeData[y * MazeWidth + x]];
+            }
             //printf(CellAA[CellTypeData[y * MazeWidth + x]]);
             //int monster = getMonster(x, y);
             //if (monster >= 0) { // モンスターがいれば、モンスターを表示
@@ -139,14 +179,38 @@ void Game::Run()
         Display();
 
         // パックマンの座標の更新
-        int x = 0;
-        int y = 0;
-        char c = _getch();
-        switch (c) {
-        case 'w': y--; break;
-        case 'd': x++; break;
-        case 's': y++; break;
-        case 'a': x--; break;
+        {
+            int x = MonsterPosMap[MONSTER_TYPE_PAC].x;
+            int y = MonsterPosMap[MONSTER_TYPE_PAC].y;
+            int previous_x = x;
+            int previous_y = y;
+            char c = _getch();
+            switch (c) {
+            case 'w': y--; break;
+            case 'd': x++; break;
+            case 's': y++; break;
+            case 'a': x--; break;
+            }
+
+            // 移動先が壁か否か
+            if ((y * MazeWidth + x) >= CellTypeData.size()) {
+                std::cout << "error: you cannnot move out of maze" << std::endl;
+                exit(1);
+            }
+            if (CellTypeData[y * MazeWidth + x] == CELL_TYPE_WALL) {
+                // 壁なら更新しない
+            }
+            else {
+                // パックマンがドットを食べる
+                CellTypeData[y * MazeWidth + x] = CELL_TYPE_MONSTER;
+                // パックマン移動
+                MonsterPosMap[MONSTER_TYPE_PAC].x = x;
+                MonsterPosMap[MONSTER_TYPE_PAC].y = y;
+                // 元居た場所はCELL_TYPE_NONEにする
+                CellTypeData[previous_y * MazeWidth + previous_x] = CELL_TYPE_NONE;
+            }
+
+
         }
     }
 
